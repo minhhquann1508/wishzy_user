@@ -46,6 +46,7 @@ interface CartActions {
   calculateTotals: () => void;
   replaceCart: (items: CartItem[]) => void;
   hasItem: (_id: string) => boolean;
+  hasOwned: (_id: string) => boolean;
 }
 
 type CartStore = CartState & CartActions;
@@ -75,6 +76,17 @@ export const useCartStore = create<CartStore>()(
       // Actions
       addItem: (item) => {
         const { items } = get();
+        // Guard: do not add if already owned (persisted by return page)
+        try {
+          const ownedRaw = typeof window !== 'undefined' ? localStorage.getItem('owned_courses') : null;
+          const owned: string[] = ownedRaw ? JSON.parse(ownedRaw) : [];
+          if (Array.isArray(owned) && owned.includes(item._id)) {
+            // Already owned, skip adding to cart
+            return;
+          }
+        } catch {
+          // ignore localStorage parsing errors
+        }
         const existingItem = items.find(cartItem => cartItem._id === item._id);
         
         let newItems: CartItem[];
@@ -153,6 +165,16 @@ export const useCartStore = create<CartStore>()(
       hasItem: (_id) => {
         const { items } = get();
         return items.some(item => item._id === _id);
+      },
+
+      hasOwned: (_id) => {
+        try {
+          const ownedRaw = typeof window !== 'undefined' ? localStorage.getItem('owned_courses') : null;
+          const owned: string[] = ownedRaw ? JSON.parse(ownedRaw) : [];
+          return Array.isArray(owned) && owned.includes(_id);
+        } catch {
+          return false;
+        }
       },
 
       calculateTotals: () => {
